@@ -1,0 +1,9 @@
+
+# Scripts to generate Kraken database from CARD 
+
+    wget -O - http://arpcard.mcmaster.ca/blast/db/nucleotide/AT-genes.fa.gz | gunzip -c > CARD-files/AT-genes.fa
+    wget -O - http://arpcard.mcmaster.ca/blast/db/AROtags.txt.gz | gunzip -c > CARD-files/AROtags.txt
+    wget -O - http://arpcard.mcmaster.ca/obo-download/aro.obo.gz | gunzip -c > CARD-files/aro.obo
+
+    Rscript generate-card-db.R
+    kraken-build --build --db .
