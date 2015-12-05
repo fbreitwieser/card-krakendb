@@ -1,17 +1,23 @@
 
 
 define result_msg
-Now run 
+Congratulations, the database structure was sucessfully generated.
+
+To build the kraken database, run:
      kraken-build --build --db .
-to build the database, and 
-     kraken --db . library/* | kraken-report --db . - 
-to ensure everything went fine.
+
+To ensure everything went well, you can test it by assigning the library/ sequences:
+    kraken --db . library/* > test.kraken
+    kraken-report --db . > test.report
 endef
 export result_msg
 
 all: CARD-files/AT-genes.fa CARD-files/AROtags.txt CARD-files/aro.obo taxonomy/gi_taxid_nucl.dmp library
 	Rscript generate-card-db.R
-	@echo "$$result_msg"
+	@echo "\n$$result_msg\n"
+
+test_msg:
+	@echo "\n$$result_msg\n"
 
 library:
 	mkdir -p library
