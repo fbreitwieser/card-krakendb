@@ -36,21 +36,14 @@ message("Generating taxonomy ...")
 if (!dir.exists("taxonomy")) dir.create("taxonomy")
 
 ## write names.dmp
-if (!file.exists("names.dmp")) {
   all_labels <- c(ontoCAT::getLabel(root_term), sapply(all_children,ontoCAT::getLabel))
   assert(all(table(all_labels)==1))   ## ensure all labels are unique
   assert(length(all_labels)==length(all_acs)) 
   
+  #label_to_id <- setNames(seq_along(all_labels),paste0(all_labels,"(",all_acs,")"))
   label_to_id <- setNames(seq_along(all_labels),all_labels)
-  names_dmp <- cbind(label_to_id[all_labels],all_labels,"","scientific name\t|")
   
-  write.table(names_dmp,
-              file="taxonomy/names.dmp",
-              quote=FALSE, sep = "\t|\t",
-              col.names = FALSE, row.names = FALSE)
-}
-
-####### write nodes.dmp
+  ####### write nodes.dmp
 
 ## difficulty: some terms have more than one parent
 ## for example
@@ -68,7 +61,6 @@ if (!file.exists("names.dmp")) {
 ##    and delete the ones you don't like
 ## 2) in the code here, just the first time a child appears it is taken
 
-if (!file.exists("taxonomy/nodes.dmp")) {
   ## matrix columns: child, parent, depth
   nodes_dmp <- matrix(NA,ncol=3,nrow=length(all_labels))
   nodes_dmp[1,] <- c(label_to_id[1],label_to_id[1],0)
@@ -102,12 +94,6 @@ if (!file.exists("taxonomy/nodes.dmp")) {
   assert(as.numeric(ret) == 1)
   assert(all(table(nodes_dmp[,1]) == 1))
   
-  nodes_dmp[,3] <- paste0("R",nodes_dmp[,3],"\t|")
-  write.table(nodes_dmp,
-              file="taxonomy/nodes.dmp",
-              quote=FALSE, sep = "\t|\t",
-              col.names = FALSE, row.names = FALSE)
-}
 
 ##############################################################################################
 ## update LIBRARY sequences
@@ -127,6 +113,11 @@ AT_genes <- readLines(at_genes_file)
 header <- grepl("^>",AT_genes)
 seq_ids <- sub("^>([^ ]*) .*","\\1",AT_genes[header])
 
+## get the names from the headers, which we'll save in names.dmp
+gene_names <- sapply(strsplit(sub("^[^ ]* ","",AT_genes[header]),"\\."), function(x) {
+  paste(x[!grepl(" ARO:",x)],collapse=".")
+})
+
 ## For some sequence ids, there's no entry in AROtags. let's take the tags from the headers instead
 #seq_ids[!seq_ids %in% tags[,1]]
 
@@ -137,9 +128,40 @@ assert(is(seq_to_ac,"character"))
 
 ## Mapping AC to taxId
 assert(all(sub(":","_",seq_to_ac) %in% names(ac_to_id)))
-seq_taxids <- as.numeric(ac_to_id[sub(":","_",seq_to_ac)])
+seq_parent_taxids <- as.numeric(ac_to_id[sub(":","_",seq_to_ac)])
+
+## Add a new tax-ID for all the individual sequences to names.dmp
+## 10000 is arbitrarily chosen to be above all others
+seq_taxids <- seq(from=10000,length.out = sum(header))
+seq_names <- 
+
+names_dmp <- cbind(as.character(c(label_to_id[all_labels],seq_taxids)),
+                   as.character(c(all_labels,gene_names)),
+                   "","scientific name\t|")
+
+write.table(names_dmp, 
+            file="taxonomy/names.dmp",
+            quote=FALSE, sep = "\t|\t",
+            col.names = FALSE, row.names = FALSE)
 
 AT_genes[header] <- paste0(">kraken:taxid|",seq_taxids," ",substring(AT_genes[header],2))
 writeLines(AT_genes, "library/AT-genes-updated.fa")
 
 
+## write connections from parent_taxid to sequence taxids into nodes_dmp
+rownames(nodes_dmp) <- nodes_dmp[,1]
+nodes_dmp <- rbind(nodes_dmp,
+                   cbind(seq_taxids,seq_parent_taxids,nodes_dmp[seq_parent_taxids]+1))
+assert(sum(duplicated(nodes_dmp[,1]))==0)
+
+nodes_dmp[,3] <- paste0("R",nodes_dmp[,3],"\t|")
+assert(!any(seq_taxids %in% label_to_id))
+new_leaf_ids <- seq(from=max(label_to_id) + 1,length.out = nrow(names_dmp) - 1)
+
+
+
+## Append nodes.dmp and names.dmp with names and links from the file
+write.table(nodes_dmp, 
+            file="taxonomy/nodes.dmp",
+            quote=FALSE, sep = "\t|\t",
+            col.names = FALSE, row.names = FALSE)
