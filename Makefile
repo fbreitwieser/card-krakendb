@@ -9,7 +9,7 @@ To build the kraken database, run:
 
 To ensure everything went well, you can test it by assigning the library/ sequences:
     kraken --db . library/* > test.kraken
-    kraken-report --db . > test.report
+    kraken-report --db . test.kraken > test.report
 endef
 export result_msg
 
