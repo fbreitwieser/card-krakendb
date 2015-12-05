@@ -11,7 +11,9 @@ These scripts
 Note that when either a ontology term has multiple parents, or a sequence is assigned to more than one term,
 one is arbitrarily taken.
 
-The repository already contains the processed library/ and taxonomy/ files - so you can go ahead and run 
+## Usage
+
+The repository already contains the processed `library/` and `taxonomy/` files - so you can go ahead and run 
 
     kraken-build --build --db .
 
@@ -20,6 +22,8 @@ If you would like to start from scratch, run
     make clean
     make
     kraken-build --build --db .
+
+## Testing
 
 To test the new database, you can try re-classifying the library sequences
 
