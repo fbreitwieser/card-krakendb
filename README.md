@@ -28,6 +28,6 @@ If you would like to start from scratch, run
 To test the new database, you can try re-classifying the library sequences
 
     kraken --db . library/* > test.kraken
-    kraken-reprot --db . > test.report
+    kraken-report --db . > test.report
     
 (c) Florian Breitwieser, 2015
