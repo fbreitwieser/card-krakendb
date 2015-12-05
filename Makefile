@@ -1,6 +1,7 @@
 
 
 define result_msg
+
 Congratulations, the database structure was sucessfully generated.
 
 To build the kraken database, run:
@@ -14,10 +15,10 @@ export result_msg
 
 all: CARD-files/AT-genes.fa CARD-files/AROtags.txt CARD-files/aro.obo taxonomy/gi_taxid_nucl.dmp library
 	Rscript generate-card-db.R
-	@echo "\n$$result_msg\n"
+	@echo "$$result_msg"
 
 test_msg:
-	@echo "\n$$result_msg\n"
+	@echo "$$result_msg"
 
 library:
 	mkdir -p library
