@@ -24,7 +24,7 @@ assert <- function(TEST) {
   if (!isTRUE(TEST)) stop("Test failed.")
 }
 
-aro <- ontoCAT::getOntology(ara_obo_file)
+aro <- ontoCAT::getOntology(aro_obo_file)
 root_term <- ontoCAT::getTermById(aro, root_id)
 
 ##############################################################################################
