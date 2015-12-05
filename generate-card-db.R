@@ -1,3 +1,17 @@
+#!/bin/env Rscript
+
+if (!"ontoCAT" %in% rownames(installed.packages())) {
+    message("Installing ontoCAT from Bioconductor")
+    source("http://bioconductor.org/biocLite.R")
+    tryCatch ({
+        biocLite("ontoCAT")
+        },error = function(e) {
+            message("Installation failed. Make sure you have Java installed, ",
+                    " then type 'R CMD javareconf -e' and restart.\n",
+                    "If it stills fails, make sure liblzma-dev is installed.\n")
+        })
+}
+
 library(ontoCAT)
 
 aro_obo_file <- "CARD-files/aro.obo"
@@ -15,8 +29,7 @@ root_term <- ontoCAT::getTermById(aro, root_id)
 
 ##############################################################################################
 ## generate TAXONOMY
-## 
-
+message("Generating taxonomy ...")
 dir.create("taxonomy")
 
 ## write names.dmp
@@ -94,7 +107,7 @@ write.table(nodes_dmp,
 
 ##############################################################################################
 ## update LIBRARY sequences
-## 
+message("Updating library sequences ...")
 
 dir.create("library")
 
@@ -126,7 +139,7 @@ assert(is(seq_to_ac,"character"))
 assert(all(sub(":","_",seq_to_ac) %in% names(ac_to_id)))
 seq_taxids <- as.numeric(ac_to_id[sub(":","_",seq_to_ac)])
 
-AT_genes[header] <- paste0(">kraken:taxid|",seq_taxids,substring(AT_genes[header],2))
+AT_genes[header] <- paste0(">kraken:taxid|",seq_taxids," ",substring(AT_genes[header],2))
 writeLines(AT_genes, "library/AT-genes-updated.fa")
 
 
