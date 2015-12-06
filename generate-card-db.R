@@ -114,8 +114,16 @@ header <- grepl("^>",AT_genes)
 seq_ids <- sub("^>([^ ]*) .*","\\1",AT_genes[header])
 
 ## get the names from the headers, which we'll save in names.dmp
-gene_names <- sapply(strsplit(sub("^[^ ]* ","",AT_genes[header]),"\\."), function(x) {
-  paste(x[!grepl(" ARO:",x)],collapse=".")
+##  - remove the ID of the header -->  sub("^[^ ]*,"",...)
+##  - split the header into sentences (separated by a period)
+header_sentences <- strsplit(sub("^[^ ]* ","",AT_genes[header]),"\\.")
+
+## use gene_names for one level in the hierachy
+gene_names <- sapply(header_sentences, function(x) x[1])
+
+seq_names <- sapply(header_sentences, function(x) {
+##      and remove all the ARO sentences
+  paste(x[!grepl(" ARO:",x)][-1],collapse=".")
 })
 
 ## For some sequence ids, there's no entry in AROtags. let's take the tags from the headers instead
@@ -132,11 +140,22 @@ seq_parent_taxids <- as.numeric(ac_to_id[sub(":","_",seq_to_ac)])
 
 ## Add a new tax-ID for all the individual sequences to names.dmp
 ## 10000 is arbitrarily chosen to be above all others
-seq_taxids <- seq(from=10000,length.out = sum(header))
-seq_names <- 
+gene_taxids <- setNames(seq(from=10000,length.out = length(unique(gene_names))),
+						unique(gene_names))
 
-names_dmp <- cbind(as.character(c(label_to_id[all_labels],seq_taxids)),
-                   as.character(c(all_labels,gene_names)),
+seq_taxids <- seq(from=20000,length.out = sum(header))
+
+label_to_ac <- setNames(sub("_",":",names(ac_to_id)),names(label_to_id))
+
+#TODO: update all_labels to include AC
+all_labels_ext <- paste0(all_labels," (",sub("_",":",all_acs),")")
+
+names_dmp <- cbind(as.character(c(label_to_id[all_labels],
+								  gene_taxids,
+								  seq_taxids)),
+                   as.character(c(all_labels_ext,
+								  names(gene_taxids),
+								  seq_names)),
                    "","scientific name\t|")
 
 write.table(names_dmp, 
@@ -150,8 +169,19 @@ writeLines(AT_genes, "library/AT-genes-updated.fa")
 
 ## write connections from parent_taxid to sequence taxids into nodes_dmp
 rownames(nodes_dmp) <- nodes_dmp[,1]
-nodes_dmp <- rbind(nodes_dmp,
-                   cbind(seq_taxids,seq_parent_taxids,nodes_dmp[seq_parent_taxids]+1))
+
+nodes_dmp_genes <- unique(cbind(gene_taxids[gene_names],
+								seq_parent_taxids,
+								nodes_dmp[seq_parent_taxids]+1))
+nodes_dmp_genes <- nodes_dmp_genes[!duplicated(nodes_dmp_genes[,1]),]
+
+
+nodes_dmp_seq <- cbind(seq_taxids,
+					   gene_taxids[gene_names],
+					   nodes_dmp[seq_parent_taxids]+2)
+
+nodes_dmp <- rbind(nodes_dmp, nodes_dmp_genes, nodes_dmp_seq)
+
 assert(sum(duplicated(nodes_dmp[,1]))==0)
 
 nodes_dmp[,3] <- paste0("R",nodes_dmp[,3],"\t|")
