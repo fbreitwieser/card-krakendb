@@ -15,8 +15,7 @@ if (!"ontoCAT" %in% rownames(installed.packages())) {
 library(ontoCAT)
 
 aro_obo_file <- "CARD-files/aro.obo"
-aro_tags_file <- "CARD-files/AROtags.txt"
-at_genes_file <- "CARD-files/AT-genes.fa"
+aro_tags_file <- "CARD-files/aro.csv"
 
 root_id <- "ARO_1000001"
 
@@ -28,7 +27,7 @@ aro <- ontoCAT::getOntology(aro_obo_file)
 root_term <- ontoCAT::getTermById(aro, root_id)
 all_children <- ontoCAT::getAllTermChildren(aro, root_term)
 all_acs <- c(ontoCAT::getAccession(root_term), sapply(all_children,ontoCAT::getAccession))
-ac_to_id <- setNames(seq_along(all_acs),all_acs)
+aro_ac_to_id <- setNames(seq_along(all_acs),all_acs)
 
 ##############################################################################################
 ## generate TAXONOMY
@@ -97,8 +96,14 @@ if (!dir.exists("taxonomy")) dir.create("taxonomy")
 
 ##############################################################################################
 ## update LIBRARY sequences
+
+  
 message("Updating library sequences ...")
 if (!dir.exists("library")) dir.create("library")
+
+#library(RJSONIO)  
+#aro_data <- read.csv("CARD-files/aro.csv")
+#card_data <- fromJSON("CARD-files/card.json")
 
 tags <- read.delim(aro_tags_file, stringsAsFactors = FALSE, header = FALSE)
 tags[,1] <- sub("\\.p0?[123]$","",tags[,1])
@@ -108,44 +113,39 @@ duplicated_tags <- duplicated(tags[,1])
 message("Removing ",sum(duplicated_tags), " duplicated tags")
 tags <- tags[!duplicated_tags,]
 
-## Reads the whole FASTA at once - not advisable for big files
-AT_genes <- readLines(at_genes_file)
-header <- grepl("^>",AT_genes)
-seq_ids <- sub("^>([^ ]*) .*","\\1",AT_genes[header])
+## Reads the whole FASTA at once - not advisable for big files
+#fasta_files <- Sys.glob("CARD-files/nucleotide_fasta_protein_*.fasta")
+fasta_files <- Sys.glob("CARD-files/nucleotide_fasta_protein_homolog_model.fasta")
+AT_genes <- do.call(c, lapply(fasta_files,readLines))
 
+header <- grepl("^>",AT_genes)
 ## get the names from the headers, which we'll save in names.dmp
-##  - remove the ID of the header -->  sub("^[^ ]*,"",...)
-##  - split the header into sentences (separated by a period)
-header_sentences <- strsplit(sub("^[^ ]* ","",AT_genes[header]),"\\.")
+header_sentences <- AT_genes[header]
 
 ## use gene_names for one level in the hierachy
 gene_names <- sapply(header_sentences, function(x) x[1])
 
-seq_names <- sapply(header_sentences, function(x) {
-##      and remove all the ARO sentences
-  paste(x[!grepl(" ARO:",x)][-1],collapse=".")
-})
+seq_names <- sub("\\|ARO:[0-9]*", "", header_sentences)
+full_gene_names <- sub(".*\\|", "", header_sentences)
+gene_names <- sub(" .*", "", full_gene_names)
+aro_tags <- sub(".*\\|(ARO:[0-9]*).*", "\\1", header_sentences)
 
-## For some sequence ids, there's no entry in AROtags. let's take the tags from the headers instead
-#seq_ids[!seq_ids %in% tags[,1]]
+assert(all(!duplicated(seq_names)))
 
 ## Creating a seq-to-ac map. Note that only the first non-root ARO tag is taken!
-seq_to_ac <-sapply(strsplit(AT_genes[header]," "),
-                   function(x) x[grepl("^ARO",x) & x != sub("_",":",root_id)][1] )
-assert(is(seq_to_ac,"character"))
+seq_to_aro_ac <- aro_tags
 
-## Mapping AC to taxId
-assert(all(sub(":","_",seq_to_ac) %in% names(ac_to_id)))
-seq_parent_taxids <- as.numeric(ac_to_id[sub(":","_",seq_to_ac)])
+## Mapping the sequemces to a parent taxId (from ARO)
+assert(all(sub(":","_",seq_to_aro_ac) %in% names(aro_ac_to_id)))
+seq_parent_taxids <- as.numeric(aro_ac_to_id[sub(":","_",seq_to_aro_ac)])
 
 ## Add a new tax-ID for all the individual sequences to names.dmp
 ## 10000 is arbitrarily chosen to be above all others
-gene_taxids <- setNames(seq(from=10000,length.out = length(unique(gene_names))),
-						unique(gene_names))
+gene_taxids <- setNames(seq(from=10000,length.out = length(unique(gene_names))),unique(gene_names))
 
 seq_taxids <- seq(from=20000,length.out = sum(header))
 
-label_to_ac <- setNames(sub("_",":",names(ac_to_id)),names(label_to_id))
+label_to_ac <- setNames(sub("_",":",names(aro_ac_to_id)),seq_names)
 
 #TODO: update all_labels to include AC
 all_labels_ext <- paste0(all_labels," (",sub("_",":",all_acs),")")
@@ -164,7 +164,7 @@ write.table(names_dmp,
             col.names = FALSE, row.names = FALSE)
 
 AT_genes[header] <- paste0(">kraken:taxid|",seq_taxids," ",substring(AT_genes[header],2))
-writeLines(AT_genes, "library/AT-genes-updated.fa")
+writeLines(AT_genes, "library/lib-sequences.fa")
 
 
 ## write connections from parent_taxid to sequence taxids into nodes_dmp
@@ -195,3 +195,5 @@ write.table(nodes_dmp,
             file="taxonomy/nodes.dmp",
             quote=FALSE, sep = "\t|\t",
             col.names = FALSE, row.names = FALSE)
+
+
