@@ -31,10 +31,8 @@ taxonomy/gi_taxid_nucl.dmp: taxonomy
 
 CARD-files:
 	mkdir -p CARD-files
-	cd CARD-files
 	wget https://card.mcmaster.ca/download/0/broadstreet-v1.1.3.tar.gz
-	tar xvvf broadstreet-v1.1.3.tar.gz 
-	cd ..
+	tar xvvf broadstreet-v1.1.3.tar.gz -C CARD-files
 
 CARD-files/nucleotide_fasta_protein_homolog_model.fasta: CARD-files
 
